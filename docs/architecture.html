@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Architecture — KPDCL Portal</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <nav class="navbar">
+    <a href="index.html" class="logo">KPDCL Portal</a>
+    <div class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="features.html">Features</a>
+      <a href="architecture.html" class="active">Architecture</a>
+    </div>
+  </nav>
+
+  <main>
+    <h1>Architecture</h1>
+
+    <!-- ============================================================ -->
+    <section>
+      <h2>Directory Structure</h2>
+      <pre>
+kpdcl-ui/
+├── app/
+│   ├── page.tsx              ← Landing / hero with consumer lookup
+│   ├── layout.tsx            ← Root layout with nav + footer
+│   ├── login/
+│   │   └── page.tsx          ← Login / Sign up / Forgot password
+│   ├── dashboard/
+│   │   └── page.tsx          ← Dashboard (after login)
+│   ├── usage/
+│   │   └── page.tsx          ← Usage with graphs + table
+│   ├── net-meter/
+│   │   └── page.tsx          ← Net meter with graphs + table
+│   ├── billing/
+│   │   └── page.tsx          ← Billing with combined chart + table
+│   ├── profile/
+│   │   └── page.tsx          ← User profile (all consumer details)
+│   └── documents/
+│       └── page.tsx          ← Documents (No Dues Cert, Bill Print)
+├── components/
+│   ├── ui/                   ← shadcn components (button, card, table, etc.)
+│   ├── layout/
+│   │   └── sidebar-layout.tsx
+│   └── login-form.tsx
+├── lib/
+│   └── utils.ts              ← shadcn utility
+├── data/
+│   ├── types.ts              ← All TypeScript interfaces
+│   └── demo.ts               ← All mock data + async fetchers
+├── docs/
+│   ├── index.html            ← Home (this site)
+│   ├── features.html         ← Feature list
+│   ├── architecture.html     ← Architecture docs
+│   └── style.css             ← Shared styles
+└── public/                   ← Static assets
+      </pre>
+    </section>
+
+    <!-- ============================================================ -->
+    <section>
+      <h2>Data Layer</h2>
+
+      <h3>data/types.ts — Shared Types</h3>
+      <pre>
+// ── Bill ──
+export type Bill = {
+  id: string
+  consumerNo: string
+  name: string
+  address: string
+  amount: number
+  dueDate: string
+  status: 'paid' | 'unpaid' | 'overdue'
+  billPeriod: string
+  billDate: string
+  pdfUrl?: string
+}
+
+// ── Payment ──
+export type Payment = {
+  id: string
+  consumerNo: string
+  amount: number
+  paidAt: string
+  method: 'online' | 'cash' | 'bank'
+  transactionId: string
+  billId: string
+}
+
+// ── Consumer ──
+export type Consumer = {
+  consumerNo: string
+  name: string
+  address: string
+  mobile: string
+  email: string
+  sanctionedLoad: number
+  connectionType: 'domestic' | 'commercial' | 'industrial'
+}
+      </pre>
+
+      <h3>data/demo.ts — Demo Data + Async Fetchers</h3>
+      <pre>
+import { Bill, Payment, Consumer } from './types'
+
+// ── Demo Data ──────────────────────────────────────
+const demoConsumers: Consumer[] = [ /* ... */ ]
+const demoBills: Bill[] = [ /* ... */ ]
+const demoPayments: Payment[] = [ /* ... */ ]
+
+// ── Async Fetchers (swap body to real API later) ───
+
+export async function fetchConsumerByNo(no: string): Promise&lt;Consumer | null&gt; {
+  // DEMO: return mock data
+  // REAL: return fetch(`/api/consumer/${no}`).then(r => r.json())
+  return demoConsumers.find(c => c.consumerNo === no) ?? null
+}
+
+export async function fetchCurrentBill(consumerNo: string): Promise&lt;Bill | null&gt; {
+  // DEMO: return mock data
+  // REAL: return fetch(`/api/bills/current/${consumerNo}`).then(r => r.json())
+  return demoBills.find(
+    b => b.consumerNo === consumerNo && b.status === 'unpaid'
+  ) ?? null
+}
+
+export async function fetchBillHistory(consumerNo: string): Promise&lt;Bill[]&gt; {
+  return demoBills
+    .filter(b => b.consumerNo === consumerNo)
+    .sort((a, b) => new Date(b.billDate).getTime() - new Date(a.billDate).getTime())
+}
+
+export async function submitPayment(billId: string, amount: number): Promise&lt;Payment&gt; {
+  // DEMO: simulate payment
+  // REAL: POST to payment gateway
+  await new Promise(r => setTimeout(r, 1000))
+  return { /* mock payment object */ }
+}
+
+export async function fetchBillById(billId: string): Promise&lt;Bill | null&gt; {
+  return demoBills.find(b => b.id === billId) ?? null
+}
+      </pre>
+
+      <p class="note">
+        <strong>Key principle:</strong> Every async function has <code>// DEMO</code> and <code>// REAL</code> comments.
+        To go live, replace the function body. Zero changes in components or pages.
+      </p>
+    </section>
+
+    <!-- ============================================================ -->
+    <section>
+      <h2>Design System</h2>
+      <ul>
+        <li><strong>UI:</strong> shadcn/ui components (button, card, table, dialog, badge, input)</li>
+        <li><strong>Styling:</strong> Tailwind CSS</li>
+        <li><strong>Icons:</strong> Lucide React</li>
+        <li><strong>Colors:</strong> Blue theme (matching KPDCL brand)</li>
+        <li><strong>Font:</strong> Inter</li>
+      </ul>
+    </section>
+
+    <!-- ============================================================ -->
+    <section>
+      <h2>Swapping Demo → Real Data</h2>
+      <p>Three approaches (choose one):</p>
+      <ol>
+        <li><strong>Direct swap:</strong> Replace function bodies in <code>data/demo.ts</code> with real <code>fetch()</code> calls</li>
+        <li><strong>Two files:</strong> Keep <code>demo.ts</code> for dev, create <code>api.ts</code> for production — change imports</li>
+        <li><strong>Env-driven:</strong> Create <code>services/bill-service.ts</code> that picks source based on <code>NEXT_PUBLIC_USE_DEMO</code> env var</li>
+      </ol>
+    </section>
+  </main>
+
+  <footer>
+    <p>MIT License — Free for KPDCL to use and modify.</p>
+  </footer>
+</body>
+</html>

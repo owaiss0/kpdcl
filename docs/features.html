@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Features — KPDCL Portal</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <nav class="navbar">
+    <a href="index.html" class="logo">KPDCL Portal</a>
+    <div class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="features.html" class="active">Features</a>
+      <a href="architecture.html">Architecture</a>
+    </div>
+  </nav>
+
+  <main>
+    <h1>Features &amp; Pages</h1>
+
+    <!-- ============================================================ -->
+    <section>
+      <h2>Pages</h2>
+      <table>
+        <thead>
+          <tr><th>Page</th><th>Route</th><th>Description</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Home</strong></td>
+            <td><code>/</code></td>
+            <td>
+              Hero section with consumer number input.
+              Quick stats (bill due, outage status).
+              Footer with helpline numbers.
+            </td>
+          </tr>
+          <tr>
+            <td><strong>Bill Detail</strong></td>
+            <td><code>/bill-payment</code></td>
+            <td>
+              Shows current bill (amount, due date, status).
+              Consumer info summary.
+              "Pay Now" button that opens payment modal.
+            </td>
+          </tr>
+          <tr>
+            <td><strong>Payment</strong></td>
+            <td><code>/bill-payment?pay=billId</code></td>
+            <td>
+              Payment confirmation modal.
+              Shows amount, consumer name.
+              Mock payment methods (UPI, net banking, card).
+              Success / failure screen.
+            </td>
+          </tr>
+          <tr>
+            <td><strong>History</strong></td>
+            <td><code>/history</code></td>
+            <td>
+              Table of past bills with status badges.
+              Sort by date, filter by status.
+              Click row to expand details.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ============================================================ -->
+    <section>
+      <h2>Component Tree</h2>
+      <pre>
+├── Public (no login)
+│   ├── HomePage
+│   │   ├── HeroBanner
+│   │   ├── ConsumerLookup
+│   │   └── QuickStats
+│   ├── BillPaymentPage
+│   │   ├── ConsumerInfoCard
+│   │   ├── BillCard
+│   │   └── PaymentModal
+│   └── HistoryPage
+│       ├── FilterBar
+│       └── BillTable
+│
+└── App (after login) — SidebarLayout
+    ├── DashboardPage
+    │   ├── WelcomeHeader
+    │   ├── ConsumerInfoCard
+    │   ├── PaymentPendingCard
+    │   ├── RecentPaymentsCard
+    │   ├── BarChart (payments)
+    │   └── LineChart (payments trend)
+    │
+    ├── UsagePage
+    │   ├── FilterBar (hourly/daily/monthly/weekly/yearly)
+    │   ├── UsageChart (line/bar)
+    │   ├── DateRangePicker
+    │   └── UsageTable + ExportButtons
+    │
+    ├── NetMeterPage
+    │   ├── FilterBar (same as Usage)
+    │   ├── NetMeterChart
+    │   ├── DateRangePicker
+    │   └── NetMeterTable + ExportButtons
+    │
+    └── BillingPage
+        ├── FilterBar
+        ├── CombinedChart (transactions vs recharge vs balance)
+        ├── DateRangePicker
+        └── BillingTable + ExportButtons
+      </pre>
+    </section>
+
+    <!-- ============================================================ -->
+    <section>
+      <h2>Data Flow</h2>
+      <ol>
+        <li>User enters consumer number on Home page</li>
+        <li><code>ConsumerLookup</code> calls <code>fetchConsumerByNo(no)</code> from <code>data/demo.ts</code></li>
+        <li>On match, redirect to <code>/bill-payment?consumer=xxx</code></li>
+        <li><code>BillDetailPage</code> calls <code>fetchCurrentBill(consumerNo)</code></li>
+        <li>User clicks "Pay Now" → <code>PaymentModal</code> opens</li>
+        <li>User confirms → <code>submitPayment(billId, amount)</code> called</li>
+        <li>On success, redirect to history or show receipt</li>
+      </ol>
+    </section>
+
+    <!-- ============================================================ -->
+    <section>
+      <h2>Future / Optional Features</h2>
+      <ul>
+        <li>New connection application flow</li>
+        <li>Complaint / outage tracking</li>
+        <li>Tariff &amp; rates page</li>
+        <li>Load calculator tool</li>
+        <li>Download bill PDF</li>
+        <li>Consumer login (auth)</li>
+        <li>Language toggle (English / Urdu / Kashmiri)</li>
+      </ul>
+      <p class="note"><em>Add or remove features here by editing this list.</em></p>
+    </section>
+
+    <!-- ============================================================ -->
+    <section>
+      <h2>Full Feature Set (After Login)</h2>
+
+      <h3>Sidebar Navigation</h3>
+      <ul>
+        <li>Dashboard</li>
+        <li>Usage</li>
+        <li>Net Meter</li>
+        <li>Billing</li>
+        <li>Services</li>
+        <li>Documents</li>
+        <li>Profile</li>
+      </ul>
+
+      <!-- ── Dashboard ── -->
+      <h3>Dashboard</h3>
+      <ul>
+        <li><strong>Header:</strong> "Welcome, {Consumer Name}" on right, "PREPAID" badge</li>
+        <li><strong>Consumer Info Card:</strong> Name, Consumer ID, Consumer Category (PREPAID), Meter Serial No, Account ID, Mobile Number, Email</li>
+        <li><strong>Payment Pending Card:</strong> Shows pending amount with "Recharge" and "View Bill" buttons</li>
+        <li><strong>Recent Payments Card:</strong> List of recent payments</li>
+        <li><strong>Charts:</strong> Bar chart + line chart showing recent payments in different sections</li>
+      </ul>
+
+      <!-- ── Usage ── -->
+      <h3>Usage</h3>
+      <ul>
+        <li><strong>Filters:</strong> Hourly / Daily / Monthly / Weekly / Yearly (default: Daily)</li>
+        <li><strong>Date range picker</strong> — view past month or full month with next/expand</li>
+        <li><strong>Consumer filter</strong> dropdown</li>
+        <li><strong>Graph:</strong> Usage chart above table based on selected filter</li>
+        <li><strong>Table columns:</strong> Date, Unit Consumed, Opening Read, Closing Read</li>
+        <li><strong>Export:</strong> CSV, PDF, Excel</li>
+      </ul>
+
+      <!-- ── Net Meter ── -->
+      <h3>Net Meter <span class="badge">Separate sidebar item</span></h3>
+      <ul>
+        <li><strong>Same filters as Usage:</strong> Hourly / Daily / Monthly / Weekly / Yearly</li>
+        <li><strong>Graph:</strong> Net meter usage chart</li>
+        <li><strong>Table columns:</strong> Date, Start Imp., End Imp., Total Imp., Start Exp., End Exp., Total Exp., Net Usage</li>
+        <li><strong>Export:</strong> CSV, PDF, Excel</li>
+      </ul>
+
+      <!-- ── Billing ── -->
+      <h3>Billing</h3>
+      <ul>
+        <li><strong>Table columns:</strong> Date, Transaction ID, Transaction Type, Transaction Amount, Available Balance</li>
+        <li><strong>Filters:</strong> Date range (shadcn date picker), transaction type filter</li>
+        <li><strong>Combined Graph:</strong> Recent transactions vs recharge history vs revenue balance over time (all on one chart)</li>
+        <li><strong>Export:</strong> CSV, PDF, Excel</li>
+      </ul>
+
+      <!-- ── Services ── -->
+      <h3>Services</h3>
+      <ul>
+        <li><strong>Name Change</strong> — current name (read-only) → new name + reason</li>
+        <li><strong>Ownership Change</strong> — current owner info → new owner name, relationship, ID proof</li>
+        <li><strong>Category Change</strong> — current category → dropdown (Domestic/Commercial/Industrial)</li>
+        <li><strong>Load Change</strong> — current sanctioned load → requested kW + reason</li>
+        <li><strong>Solar Agreement</strong> — type (new/net-meter/modify), capacity, installer/vendor</li>
+        <li><strong>Raise / Track Ticket</strong> — type (complaint/query/request), subject, description, attachment</li>
+        <li><strong>Recent Tickets</strong> table — ticket ID, subject, date, priority, status badges</li>
+        <li>All services open as modals from a grid of service cards</li>
+      </ul>
+
+      <!-- ── User Profile ── -->
+      <h3>User Profile</h3>
+      <ul>
+        <li>Consumer ID, Installation Number, Name, Category (Domestic/Commercial/Industrial)</li>
+        <li>Parentage, Service Agreement ID, PREPAID/Account ID</li>
+        <li>Service Start Date, Meter Batch, Meter Serial Number</li>
+        <li>Sanction Load (kW), Phone, Feeder Code, Email</li>
+        <li>Read-only display of all consumer details</li>
+      </ul>
+
+      <!-- ── Documents ── -->
+      <h3>Documents</h3>
+      <ul>
+        <li><strong>No Dues Certificate</strong> — view &amp; download</li>
+        <li><strong>Bill Print</strong> — view &amp; download past bill PDFs</li>
+        <li>Document list with date, type, download button</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer>
+    <p>MIT License — Free for KPDCL to use and modify.</p>
+  </footer>
+</body>
+</html>
+
+
+
+
+
+name change Consumer Id
+xxx prefilled
+Sanction Load
+2KW prefilled
+Registered name
+xxxYprefilled
+Mobile Number
+88xx prefilled
+Address xxxxx prefilled
+Specify the connection owner's new name
+ Documents Required 
+• Copy of latest bill duly paid	pdf	MANDATORY
+• Proof of ownership / legal occupation of the premises in the name of applicant.	pdf	MANDATORY
+• NOC from other legal heir(s) [if name is to be changed to one of the legal heir ]	pdf	Optional
+• Other document	pdf	Optional
+• NOC PUBLISHED IN PRINT MEDIA	pdf	MANDATORY 
+
+Request for Ownership Change Enter the given required details
+
+Consumer Id
+0xxxxxx. prefilled
+Sanction Load
+2KW prefilled
+Registered name
+MOxxxx prefilled
+Mobile Number
+882. xxxprefilled
+Address  prefilled
+Name of person in whose name connection to be changed
+Documents Required
+• Copy of latest bill duly paid	pdf	MANDATORY
+• Proof of ownership / legal occupation of the premises in the name of applicant.	pdf	MANDATORY
+• NOC from other legal heir(s) [if name is to be changed to one of the legal heir ]	pdf	Optional
+• Other document	pdf	Optional
+• NOC PUBLISHED IN PRINT MEDIA	pdf	MANDATORY
+Submit Category Change
+Enter the given required details
+
+Consumer Id
+02xxxx prefilled
+Sanction Load
+2xxxx  prefilled
+Registered na me
+MOxxxxxx prefilled
+Mobile Number
+88xxx prefilled
+Address prefilled
+Tariff category dropdown state central gov dep, non domestic, domestic, agritcula 
+
+Select Category
+Reason for change in category
+Documents Required
+• Proof of ownership / legal occupation of the premises in the name of applicant.	pdf	MANDATORY
+• Other document (for industrial/ agricultural consumers)	pdf	Optional
+SubmitLoad change
+Enhancement/Reduction
+
+Enter the given required details
+
+Consumer Id
+02xxxxx prefilled
+Name of appli cant/ organization
+MOxxx prefilled
+Existing Load [KW / KV]
+2KW prefilled
+Mobile Number
+88xxxprefilled
+Addressxxxxprefilled
+Requested Load [KW / KV]
+
+KW
+Reason
+Documents Required
+• Copy of latest bill duly paid	pdf	MANDATORY
+SubmitSolar Agreement
+Applicant Details
+
+Name of the Consumer
+MOprefilled 
+Sanctioned Load
+2KW prefilled
+Category
+D prefilled 
+Meter Serial No.
+KA prefilled 
+Address 
+Mobile Number
+88
+Email 
+Solar PV System Details
+
+Capacity of Solar PV Plant (kWp)
+Solar Grid Inverter Make/Type
+Automatic isolation Protection (Anti-islanding)?
+
+YES
+Has a Solar Generation been installed?
+
+YES
+Expected Date of Commissioning
+
+dd/mm/yyyy
+Documents Required
+• Passport size picture	jpg/jpeg only	MANDATORY
+9/
+• Specimen Signature	jpg/jpeg only	MANDATORY
+9/
+• Test Certificates	pdf only	MANDATORY
+9/
+SubmitTrack your request
+Raise Ticket
+Enter given required details
+
+Consumer Id
+0207030008588
+Select problem category:
+
+-- Select One --
+Describe your problem:
+Submit
+Track Ticket
+Enter the required details
+
+Select Track ID:
+
+-- Select One --
+Track Ticket Select problem category: bill paymnet meter saftey supply issue other 
+now Select sub problem category: bill bill not genrteing bill inncoect usage inncinncorrect 
+now paymrnt payment error nd paymrht to inncorrect no and payemnt not showing 
+
+now  meter   Incorrect Tagging
+Net Meter
+Damaged Meter
+Old Meter Exchange
+Non Communicating Meter
+Meter Not Posted
+Running Too Fast
+Improper Last Read
+Replacement of Smart Meter
+Meter installed for closed SA
+High read for old meter
+Meter shifting
+Meter not sealed
+
+Track Ticket
+Enter the required details
+
+Select Track ID:  

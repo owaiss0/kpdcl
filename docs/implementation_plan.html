@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KPDCL DISCOM Portal — Implementation Plan (Phase 3.15)</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .alert {
+      padding: 1rem;
+      border-radius: 8px;
+      margin: 1.5rem 0;
+      border-left: 4px solid;
+    }
+    .alert-important {
+      background-color: #eff6ff;
+      border-color: #2563eb;
+      color: #1e40af;
+    }
+    .alert-title {
+      font-weight: 700;
+      margin-bottom: 0.25rem;
+    }
+    .component-title {
+      margin-top: 2rem;
+      border-bottom: 1px solid #cbd5e1;
+      padding-bottom: 0.25rem;
+    }
+    .file-action {
+      font-family: monospace;
+      font-weight: bold;
+      color: #64748b;
+      margin-right: 0.5rem;
+    }
+    .file-action.new { color: #16a34a; }
+    .file-action.modify { color: #ea580c; }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <a href="index.html" class="logo">KPDCL Portal</a>
+    <div class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="features.html">Features</a>
+      <a href="architecture.html">Architecture</a>
+      <a href="implementation_plan.html" class="active">Plan</a>
+    </div>
+  </nav>
+
+  <main>
+    <section>
+      <h1>KPDCL Consumer Portal Enhancements (Phase 3.15)</h1>
+      <p class="subtitle">Technical plan to add MIT license, write detailed README, and push code to your GitHub repository.</p>
+    </section>
+
+    <section>
+      <div class="alert alert-important">
+        <div class="alert-title">📢 Key Phase 3.15 Objectives</div>
+        <ul>
+          <li><strong>MIT License Creation</strong>: Write the standard MIT license text with 2026 copyright.</li>
+          <li><strong>README Overhaul</strong>: Write an extensive README showing app features, stack, architecture, run instructions, and author credits.</li>
+          <li><strong>Git Push Integration</strong>: Commit local file modifications and push to GitHub repository.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section>
+      <h2>Proposed Changes & File List</h2>
+      
+      <h3 class="component-title">1. Documentation & License</h3>
+      <ul>
+        <li>
+          <span class="file-action new">[NEW]</span> 
+          <code>LICENSE</code>: Create the MIT license file.
+        </li>
+        <li>
+          <span class="file-action modify">[MODIFY]</span> 
+          <code>README.md</code>: Write detailed architecture and instructions.
+        </li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Verification & Testing</h2>
+      <h3>Manual Testing Steps:</h3>
+      <ol>
+        <li>Verify LICENSE and README.md files are correctly formatted and saved.</li>
+        <li>Check Git remote branches and commit records.</li>
+      </ol>
+    </section>
+  </main>
+
+  <footer>
+    <p>KPDCL Portal — Implementation Plan Documentation</p>
+  </footer>
+</body>
+</html>
