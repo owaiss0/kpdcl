@@ -8,7 +8,7 @@ import {
   Copy, Check, FileText, BarChart3,
   TrendingUp, Activity, PhoneCall,
   ChevronRight, Sparkles, Building2,
-  CheckCircle2, ArrowLeft
+  CheckCircle2, ArrowLeft, RotateCcw, ZapOff
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -23,6 +23,15 @@ import {
   CartesianGrid
 } from "recharts"
 
+import {
+  DEFAULT_CONNECTIONS,
+  getStoredConnections,
+  setStoredConnections,
+  getStoredSession,
+  resetToDefaults,
+  type Connection,
+} from "@/lib/storage"
+
 // Monthly billing & consumption demo data (Chart color: Green as per user style guidelines)
 const paymentChartData = [
   { month: "Jan", amount: 1200, units: 280 },
@@ -31,13 +40,6 @@ const paymentChartData = [
   { month: "Apr", amount: 1620, units: 340 },
   { month: "May", amount: 1845, units: 390 },
   { month: "Jun", amount: 500, units: 110 },
-]
-
-type Connection = { consumerNo: string; name: string; type?: string; balance?: number; address?: string }
-
-const DEFAULT_CONNECTIONS: Connection[] = [
-  { consumerNo: "KPDCL-2024-001", name: "Mohammad Irfan", type: "Domestic", balance: 500, address: "House No. 42, Colony Road, Srinagar" },
-  { consumerNo: "KPDCL-2024-002", name: "Fatima Begum", type: "Commercial", balance: 0, address: "Shop No. 12, Main Bazaar, Anantnag" }
 ]
 
 function formatDate(dateStr: string): string {
@@ -53,7 +55,6 @@ function DashboardInner() {
   const router = useRouter()
   const consumerNo = searchParams.get("consumer")
 
-  const [mounted, setMounted] = useState(false)
   const [session, setSession] = useState<{ email: string } | null>(null)
   
   // Account portal connections state initialized with deterministic defaults
@@ -86,36 +87,21 @@ function DashboardInner() {
 
   // Hydrate client state from localStorage safely after mount
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setMounted(true)
-    try {
-      const stored = localStorage.getItem("kpdcl_linked_consumers")
-      if (stored) {
-        const parsed = JSON.parse(stored)
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const merged = parsed.map((item: Connection) => {
-            const def = DEFAULT_CONNECTIONS.find(d => d.consumerNo === item.consumerNo)
-            return {
-              ...item,
-              address: item.address || def?.address || "Srinagar, J&K"
-            }
-          })
-          setConnections(merged)
-        }
+    function hydrate() {
+      const stored = getStoredConnections()
+      if (stored !== null) {
+        setConnections(stored)
       }
-      const sess = localStorage.getItem("kpdcl_user_session")
-      if (sess) setSession(JSON.parse(sess))
-    } catch (e) {
-      console.error(e)
+      const sess = getStoredSession()
+      if (sess) {
+        setSession(sess)
+      }
     }
-  }, [])
 
-  // Sync connections to storage only after mounted
-  useEffect(() => {
-    if (mounted) {
-      localStorage.setItem("kpdcl_linked_consumers", JSON.stringify(connections))
-    }
-  }, [connections, mounted])
+    hydrate()
+    window.addEventListener("storage", hydrate)
+    return () => window.removeEventListener("storage", hydrate)
+  }, [])
 
   // Load connection-specific details
   useEffect(() => {
@@ -153,13 +139,10 @@ function DashboardInner() {
 
     const updated = [...connections, newConn]
     setConnections(updated)
-    localStorage.setItem("kpdcl_linked_consumers", JSON.stringify(updated))
+    setStoredConnections(updated)
     setNewConsumerNo("")
     setNewName("")
     setLinkSuccess(`Successfully linked connection: ${cNo}`)
-    
-    // Auto-update Sidebar select dropdown trigger
-    window.dispatchEvent(new Event('storage'))
   }
 
   // Remove connection handler
@@ -168,11 +151,8 @@ function DashboardInner() {
 
     const updated = connections.filter(c => c.consumerNo !== confirmRemoveConsumer)
     setConnections(updated)
-    localStorage.setItem("kpdcl_linked_consumers", JSON.stringify(updated))
+    setStoredConnections(updated)
     setConfirmRemoveConsumer(null)
-
-    // Auto-update Sidebar dropdown selector
-    window.dispatchEvent(new Event('storage'))
   }
 
   // Total outstanding across all linked accounts
@@ -686,74 +666,110 @@ function DashboardInner() {
                     Select a connection to view detailed consumption graphs, ledger, and bills
                   </CardDescription>
                 </div>
-                <Badge variant="outline" className="text-xs font-semibold">
-                  {connections.length} Accounts
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => resetToDefaults()}
+                    className="h-7 px-2.5 text-xs gap-1.5 border-dashed border-border/80 text-muted-foreground hover:text-foreground cursor-pointer"
+                    title="Reset all connections back to factory default demo accounts"
+                  >
+                    <RotateCcw className="h-3 w-3 text-primary" />
+                    <span>Reset Demo Data</span>
+                  </Button>
+                  <Badge variant="outline" className="text-xs font-semibold">
+                    {connections.length} Accounts
+                  </Badge>
+                </div>
               </CardHeader>
               <CardContent className="space-y-3">
-                {connections.map((c) => (
-                  <div 
-                    key={c.consumerNo}
-                    onClick={() => router.push(`/dashboard?consumer=${c.consumerNo}`)}
-                    className="group relative flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl border bg-card hover:border-primary hover:shadow-xs transition duration-150 cursor-pointer overflow-hidden"
-                  >
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2.5">
-                        <span className="font-semibold text-sm text-foreground group-hover:text-primary transition">
-                          {c.name}
-                        </span>
-                        <Badge variant="outline" className="text-[10px] uppercase font-bold bg-muted/50">
-                          {c.type || "Domestic"}
-                        </Badge>
-                        <span className="inline-flex items-center gap-1 text-[10px] text-emerald-600 font-medium">
-                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Active
-                        </span>
-                      </div>
-                      <p className="text-xs font-mono text-muted-foreground">
-                        Consumer ID: <span className="font-semibold text-foreground">{c.consumerNo}</span>
-                      </p>
-                      <p className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5">
-                        <MapPin className="h-3 w-3" /> {c.address || "Srinagar, J&K"}
+                {connections.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center p-8 text-center rounded-xl border border-dashed bg-muted/20 space-y-3">
+                    <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                      <ZapOff className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">No linked connections found</p>
+                      <p className="text-xs text-muted-foreground mt-0.5 max-w-sm">
+                        You have removed all electricity connections from your portal account. You can link a connection or reset back to default demo accounts.
                       </p>
                     </div>
-
-                    <div className="flex items-center justify-between sm:justify-end gap-3 mt-3 sm:mt-0 pt-3 sm:pt-0 border-t sm:border-t-0">
-                      <div className="text-left sm:text-right mr-1">
-                        <p className="text-[10px] text-muted-foreground font-semibold uppercase">Wallet / Credit</p>
-                        <p className="text-sm font-bold text-foreground">
-                          ₹{c.balance !== undefined ? c.balance.toLocaleString("en-IN") : "0"}
+                    <div className="flex items-center gap-2 pt-1">
+                      <Button
+                        size="sm"
+                        onClick={() => resetToDefaults()}
+                        className="text-xs h-8 gap-1.5 cursor-pointer shadow-xs"
+                      >
+                        <RotateCcw className="h-3.5 w-3.5" />
+                        <span>Reset to Default Accounts</span>
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  connections.map((c) => (
+                    <div 
+                      key={c.consumerNo}
+                      onClick={() => router.push(`/dashboard?consumer=${c.consumerNo}`)}
+                      className="group relative flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl border bg-card hover:border-primary hover:shadow-xs transition duration-150 cursor-pointer overflow-hidden"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2.5">
+                          <span className="font-semibold text-sm text-foreground group-hover:text-primary transition">
+                            {c.name}
+                          </span>
+                          <Badge variant="outline" className="text-[10px] uppercase font-bold bg-muted/50">
+                            {c.type || "Domestic"}
+                          </Badge>
+                          <span className="inline-flex items-center gap-1 text-[10px] text-emerald-600 font-medium">
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Active
+                          </span>
+                        </div>
+                        <p className="text-xs font-mono text-muted-foreground">
+                          Consumer ID: <span className="font-semibold text-foreground">{c.consumerNo}</span>
+                        </p>
+                        <p className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                          <MapPin className="h-3 w-3" /> {c.address || "Srinagar, J&K"}
                         </p>
                       </div>
 
-                      <div className="flex items-center gap-1.5">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-8 text-xs font-semibold gap-1 text-primary hover:text-primary"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            router.push(`/dashboard?consumer=${c.consumerNo}`)
-                          }}
-                        >
-                          <span>Manage</span>
-                          <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setConfirmRemoveConsumer(c.consumerNo)
-                          }}
-                          title="Remove Connection"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                      <div className="flex items-center justify-between sm:justify-end gap-3 mt-3 sm:mt-0 pt-3 sm:pt-0 border-t sm:border-t-0">
+                        <div className="text-left sm:text-right mr-1">
+                          <p className="text-[10px] text-muted-foreground font-semibold uppercase">Wallet / Credit</p>
+                          <p className="text-sm font-bold text-foreground">
+                            ₹{c.balance !== undefined ? c.balance.toLocaleString("en-IN") : "0"}
+                          </p>
+                        </div>
+
+                        <div className="flex items-center gap-1.5">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 text-xs font-semibold gap-1 text-primary hover:text-primary"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              router.push(`/dashboard?consumer=${c.consumerNo}`)
+                            }}
+                          >
+                            <span>Manage</span>
+                            <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setConfirmRemoveConsumer(c.consumerNo)
+                            }}
+                            title="Remove Connection"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </CardContent>
             </Card>
 

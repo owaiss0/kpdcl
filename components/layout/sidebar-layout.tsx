@@ -20,6 +20,7 @@ import {
   PhoneCall,
   Activity,
   ArrowRight,
+  RotateCcw,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
@@ -27,6 +28,14 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
+import {
+  DEFAULT_CONNECTIONS,
+  getStoredConnections,
+  getStoredSession,
+  clearStoredSession,
+  resetToDefaults,
+  type Connection,
+} from "@/lib/storage"
 
 const navItems = [
   { label: "Portal Home", href: "/dashboard", icon: LayoutDashboard, portalOnly: true },
@@ -37,13 +46,6 @@ const navItems = [
   { label: "Consumer Services", href: "/services", icon: LifeBuoy, connectionOnly: true },
   { label: "Documents & NOC", href: "/documents", icon: FileText, connectionOnly: true },
   { label: "Account Profile", href: "/profile", icon: User },
-]
-
-type Connection = { consumerNo: string; name: string; type?: string }
-
-const DEFAULT_CONNECTIONS: Connection[] = [
-  { consumerNo: "KPDCL-2024-001", name: "Mohammad Irfan", type: "Domestic" },
-  { consumerNo: "KPDCL-2024-002", name: "Fatima Begum", type: "Commercial" }
 ]
 
 function Sidebar({
@@ -65,33 +67,17 @@ function Sidebar({
 
   // Safe client hydration from localStorage
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem("kpdcl_linked_consumers")
-      if (stored) {
-        const parsed = JSON.parse(stored)
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          // eslint-disable-next-line react-hooks/set-state-in-effect
-          setConnections(parsed)
-        }
+    function hydrate() {
+      const stored = getStoredConnections()
+      if (stored !== null) {
+        setConnections(stored)
       }
-      const sess = localStorage.getItem("kpdcl_user_session")
-      if (sess) setSession(JSON.parse(sess))
-    } catch (e) {
-      console.error(e)
+      setSession(getStoredSession())
     }
 
-    function handleStorageChange() {
-      try {
-        const stored = localStorage.getItem("kpdcl_linked_consumers")
-        if (stored) {
-          setConnections(JSON.parse(stored))
-        }
-      } catch (e) {
-        console.error(e)
-      }
-    }
-    window.addEventListener('storage', handleStorageChange)
-    return () => window.removeEventListener('storage', handleStorageChange)
+    hydrate()
+    window.addEventListener("storage", hydrate)
+    return () => window.removeEventListener("storage", hydrate)
   }, [])
 
   // Close switcher dropdown on outside click
@@ -368,6 +354,21 @@ function Sidebar({
 
       {/* Sidebar Footer with Logged In User Profile & Logout (OW logo removed) */}
       <div className="p-3 space-y-2 pb-6 md:pb-3">
+        {/* Always-visible Reset Demo Data button */}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            resetToDefaults()
+            router.push("/dashboard")
+          }}
+          className="w-full h-8 text-xs font-medium border-dashed border-border/80 text-muted-foreground hover:text-foreground hover:bg-muted/60 hover:border-primary/40 gap-1.5 cursor-pointer shadow-none"
+          title="Reset all connections and profile updates back to factory defaults"
+        >
+          <RotateCcw className="h-3.5 w-3.5 text-primary" />
+          <span>Reset Demo Data</span>
+        </Button>
+
         <div className="flex items-center justify-between p-2 rounded-xl bg-muted/40 border">
           <div className="flex items-center gap-2 min-w-0">
             <Avatar className="h-8 w-8 shrink-0 ring-1 ring-border">
@@ -389,7 +390,7 @@ function Sidebar({
             size="icon"
             className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0 cursor-pointer"
             onClick={() => {
-              localStorage.removeItem("kpdcl_user_session")
+              clearStoredSession()
               router.push("/login")
             }}
             title="Log Out"
@@ -418,6 +419,7 @@ export default function SidebarLayout({
   children: React.ReactNode
   consumerNo: string
 }) {
+  const router = useRouter()
   const [mobileOpen, setMobileOpen] = useState(false)
 
   return (
@@ -450,6 +452,19 @@ export default function SidebarLayout({
           </div>
 
           <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                resetToDefaults()
+                router.push("/dashboard")
+              }}
+              className="h-8 px-2 text-xs gap-1 border-dashed text-muted-foreground hover:text-foreground cursor-pointer"
+              title="Reset Demo Data to factory defaults"
+            >
+              <RotateCcw className="h-3 w-3 text-primary" />
+              <span className="hidden sm:inline">Reset</span>
+            </Button>
             <a 
               href="tel:1912" 
               className="text-xs font-semibold text-blue-700 dark:text-blue-300 flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-blue-200 dark:border-blue-900 bg-blue-50/50 dark:bg-blue-950/30"

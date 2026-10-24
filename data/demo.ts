@@ -2,6 +2,7 @@ import type {
   Consumer, Bill, Payment, UsageRecord,
   NetMeterRecord, BillingRecord, TimeFilter
 } from './types'
+import { getStoredProfileUpdates, getStoredConnections } from '@/lib/storage'
 
 // ── Demo Data ──────────────────────────────────────────────────────
 
@@ -145,53 +146,51 @@ const demoBillingRecords: BillingRecord[] = [
 
 // ── Async Fetchers (swap body to real API later) ──────────────────
 
+function withProfileUpdates(consumer: Consumer): Consumer {
+  const updates = getStoredProfileUpdates(consumer.consumerNo)
+  if (!updates) return consumer
+  return {
+    ...consumer,
+    mobile: updates.mobile || consumer.mobile,
+    email: updates.email || consumer.email,
+  }
+}
+
 export async function fetchConsumerByNo(no: string): Promise<Consumer | null> {
   if (!no || no === "undefined" || no === "null" || no === "portal") {
-    return demoConsumers[0]
+    return withProfileUpdates(demoConsumers[0])
   }
   const match = demoConsumers.find(c => c.consumerNo.toLowerCase() === no.toLowerCase())
-  if (match) return match
+  if (match) return withProfileUpdates(match)
 
   // Check localStorage for custom linked consumers
-  if (typeof window !== "undefined") {
-    try {
-      const stored = localStorage.getItem("kpdcl_linked_consumers")
-      if (stored) {
-        interface StoredConsumer {
-          consumerNo: string
-          name: string
-          address?: string
-          type?: string
-        }
-        const parsed: StoredConsumer[] = JSON.parse(stored)
-        const found = parsed.find((p) => p.consumerNo?.toLowerCase() === no.toLowerCase())
-        if (found) {
-          const typeStr = found.type?.toLowerCase()
-          const connType = (typeStr === "commercial" || typeStr === "industrial") ? typeStr : "domestic"
-          return {
-            consumerNo: found.consumerNo,
-            name: found.name,
-            address: found.address || "House No. 12, Main Road, Srinagar, J&K",
-            mobile: "9419000002",
-            email: "consumer@example.com",
-            sanctionedLoad: 5,
-            connectionType: connType,
-            category: "PREPAID",
-            meterSerialNo: `KA-${found.consumerNo.slice(-5) || "88219"}`,
-            accountId: `644-987-${found.consumerNo.slice(-4) || "4321"}`,
-          }
-        }
+  const storedConnections = getStoredConnections()
+  if (storedConnections) {
+    const found = storedConnections.find((p) => p.consumerNo?.toLowerCase() === no.toLowerCase())
+    if (found) {
+      const typeStr = found.type?.toLowerCase()
+      const connType = (typeStr === "commercial" || typeStr === "industrial") ? typeStr : "domestic"
+      const customConsumer: Consumer = {
+        consumerNo: found.consumerNo,
+        name: found.name,
+        address: found.address || "House No. 12, Main Road, Srinagar, J&K",
+        mobile: "9419000002",
+        email: "consumer@example.com",
+        sanctionedLoad: 5,
+        connectionType: connType,
+        category: "PREPAID",
+        meterSerialNo: `KA-${found.consumerNo.slice(-5) || "88219"}`,
+        accountId: `644-987-${found.consumerNo.slice(-4) || "4321"}`,
       }
-    } catch (e) {
-      console.error(e)
+      return withProfileUpdates(customConsumer)
     }
   }
 
   // Safe fallback so no consumer ID ever causes a blank page or 404
-  return {
+  return withProfileUpdates({
     ...demoConsumers[0],
     consumerNo: no,
-  }
+  })
 }
 
 export async function fetchCurrentBill(consumerNo: string): Promise<Bill | null> {

@@ -17,6 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import SidebarLayout from "@/components/layout/sidebar-layout"
 import { fetchConsumerByNo } from "@/data/demo"
 import type { Consumer } from "@/data/types"
+import { setStoredProfileUpdates } from "@/lib/storage"
 
 function ProfileInner() {
   const searchParams = useSearchParams()
@@ -40,26 +41,10 @@ function ProfileInner() {
     setTimeout(() => setCopiedKey(null), 2000)
   }
 
-  // Load consumer details & local overrides
+  // Load consumer details (with local overrides handled by fetchConsumerByNo)
   useEffect(() => {
     fetchConsumerByNo(consumerNo).then((data) => {
-      if (data) {
-        try {
-          const storedUpdates = localStorage.getItem(`kpdcl_profile_updates_${consumerNo}`)
-          if (storedUpdates) {
-            const parsed = JSON.parse(storedUpdates)
-            setConsumer({
-              ...data,
-              mobile: parsed.mobile || data.mobile,
-              email: parsed.email || data.email
-            })
-          } else {
-            setConsumer(data)
-          }
-        } catch {
-          setConsumer(data)
-        }
-      }
+      if (data) setConsumer(data)
     })
   }, [consumerNo])
 
@@ -122,14 +107,10 @@ function ProfileInner() {
         email: updatedEmail
       })
 
-      try {
-        localStorage.setItem(`kpdcl_profile_updates_${consumerNo}`, JSON.stringify({
-          mobile: updatedMobile,
-          email: updatedEmail
-        }))
-      } catch (err) {
-        console.error(err)
-      }
+      setStoredProfileUpdates(consumerNo, {
+        mobile: updatedMobile,
+        email: updatedEmail
+      })
 
       setModalStep("success")
     } else {
