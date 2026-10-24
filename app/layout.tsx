@@ -16,7 +16,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={cn("antialiased", inter.variable)} suppressHydrationWarning>
+    <html
+      lang="en"
+      className={cn("antialiased", inter.variable)}
+      suppressHydrationWarning
+      data-scroll-behavior="smooth"
+    >
       <body className="min-h-screen bg-background font-sans text-foreground">
         {children}
       </body>

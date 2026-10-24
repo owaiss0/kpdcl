@@ -1,8 +1,7 @@
 "use client"
 
-import { Suspense } from "react"
-import { useSearchParams } from "next/navigation"
-import { useEffect, useState } from "react"
+import { Suspense, useMemo, useEffect, useState } from "react"
+import { useSearchParams, useRouter } from "next/navigation"
 import { Download, FileSpreadsheet, FileJson, FileText as PdfIcon, AlertCircle } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -24,32 +23,47 @@ import {
 } from "recharts"
 import { exportToCSV, exportToExcel, exportToPDF } from "@/lib/export"
 
-// Helper function to format date depending on timescale
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+// Deterministic, SSR-safe date formatting helper
 function formatDateByFilter(dateStr: string, filter: TimeFilter, type: 'chart' | 'table' = 'chart') {
+  if (!dateStr) return "-"
   const d = new Date(dateStr)
   if (isNaN(d.getTime())) return dateStr
 
+  const day = d.getDate().toString().padStart(2, "0")
+  const month = MONTHS[d.getMonth()]
+  const year = d.getFullYear()
+
   switch (filter) {
-    case 'hourly':
-      return d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })
-    case 'weekly':
+    case 'hourly': {
+      const hours = d.getHours()
+      const ampm = hours >= 12 ? "PM" : "AM"
+      const formattedHours = (hours % 12 || 12).toString().padStart(2, "0")
+      return `${formattedHours}:00 ${ampm}`
+    }
+    case 'weekly': {
       const endOfWeek = new Date(d.getTime() + 6 * 24 * 60 * 60 * 1000)
+      const endDay = endOfWeek.getDate().toString().padStart(2, "0")
+      const endMonth = MONTHS[endOfWeek.getMonth()]
       if (type === 'table') {
-        return `${d.toLocaleDateString("en-IN", { day: "2-digit", month: "short" })} - ${endOfWeek.toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}`
+        return `${day} ${month} - ${endDay} ${endMonth}`
       }
-      return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short" })
+      return `${day} ${month}`
+    }
     case 'monthly':
-      return d.toLocaleDateString("en-IN", { month: "short", year: "numeric" })
+      return `${month} ${year}`
     case 'yearly':
-      return d.toLocaleDateString("en-IN", { year: "numeric" })
+      return `${year}`
     case 'daily':
     default:
-      return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short" })
+      return `${day} ${month}`
   }
 }
 
 function NetMeterInner() {
   const searchParams = useSearchParams()
+  const router = useRouter()
   const consumerNo = searchParams.get("consumer") || ""
 
   const [consumer, setConsumer] = useState<Consumer | null>(null)
@@ -102,28 +116,32 @@ function NetMeterInner() {
     }
   }, [consumerNo, filter])
 
-  // Filter records by dates
-  const filteredRecords = records.filter((r) => {
-    const recordDate = r.date.includes('T') ? r.date.split('T')[0] : r.date
-    if (fromDate && recordDate < fromDate) return false
-    if (toDate && recordDate > toDate) return false
-    return true
-  })
+  // Filter records by dates (memoized for performance)
+  const filteredRecords = useMemo(() => {
+    return records.filter((r) => {
+      const recordDate = r.date.includes('T') ? r.date.split('T')[0] : r.date
+      if (fromDate && recordDate < fromDate) return false
+      if (toDate && recordDate > toDate) return false
+      return true
+    })
+  }, [records, fromDate, toDate])
 
-  // Prepare chart data
-  const chartData = filteredRecords.map((r) => ({
-    displayDate: formatDateByFilter(r.date, filter, 'chart'),
-    imported: r.totalImp,
-    exported: r.totalExp,
-    net: r.netUsage,
-  }))
+  // Prepare chart data (memoized for performance)
+  const chartData = useMemo(() => {
+    return filteredRecords.map((r) => ({
+      displayDate: formatDateByFilter(r.date, filter, 'chart'),
+      imported: r.totalImp,
+      exported: r.totalExp,
+      net: r.netUsage,
+    }))
+  }, [filteredRecords, filter])
 
   // Download Handlers
   function triggerCSVDownload() {
     const headers = ["Date/Time", "Start Imp.", "End Imp.", "Total Imp. (kWh)", "Start Exp.", "End Exp.", "Total Exp. (kWh)", "Net Usage (kWh)"]
     const data = filteredRecords.map(r => [
       filter === 'hourly'
-        ? `${new Date(r.date).toLocaleDateString("en-IN")} ${formatDateByFilter(r.date, 'hourly')}`
+        ? `${formatDateByFilter(r.date, 'daily')} ${formatDateByFilter(r.date, 'hourly')}`
         : formatDateByFilter(r.date, filter, 'table'),
       r.startImp,
       r.endImp,
@@ -140,7 +158,7 @@ function NetMeterInner() {
     const headers = ["Date/Time", "Start Imp.", "End Imp.", "Total Imp. (kWh)", "Start Exp.", "End Exp.", "Total Exp. (kWh)", "Net Usage (kWh)"]
     const data = filteredRecords.map(r => [
       filter === 'hourly'
-        ? `${new Date(r.date).toLocaleDateString("en-IN")} ${formatDateByFilter(r.date, 'hourly')}`
+        ? `${formatDateByFilter(r.date, 'daily')} ${formatDateByFilter(r.date, 'hourly')}`
         : formatDateByFilter(r.date, filter, 'table'),
       r.startImp,
       r.endImp,
@@ -157,7 +175,7 @@ function NetMeterInner() {
     const headers = ["Date/Time", "Start Imp.", "End Imp.", "Total Imp. (kWh)", "Start Exp.", "End Exp.", "Total Exp. (kWh)", "Net Usage (kWh)"]
     const data = filteredRecords.map(r => [
       filter === 'hourly'
-        ? `${new Date(r.date).toLocaleDateString("en-IN")} ${formatDateByFilter(r.date, 'hourly')}`
+        ? `${formatDateByFilter(r.date, 'daily')} ${formatDateByFilter(r.date, 'hourly')}`
         : formatDateByFilter(r.date, filter, 'table'),
       r.startImp,
       r.endImp,
@@ -190,7 +208,7 @@ function NetMeterInner() {
           <p className="text-sm text-muted-foreground leading-relaxed">
             To view solar generation net meter charts and download statements, please select an active connection from the sidebar dropdown.
           </p>
-          <Button onClick={() => window.location.href = '/dashboard'}>Go to Portal Dashboard</Button>
+          <Button onClick={() => router.push('/dashboard')}>Go to Portal Dashboard</Button>
         </div>
       </SidebarLayout>
     )
@@ -220,8 +238,8 @@ function NetMeterInner() {
                   <XAxis dataKey="displayDate" tick={{ fontSize: 10, fill: '#64748b' }} />
                   <YAxis tick={{ fontSize: 10, fill: '#64748b' }} unit=" kWh" />
                   <Tooltip cursor={{ fill: 'rgba(37,99,235,0.04)' }} contentStyle={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }} />
-                  <Bar dataKey="imported" fill="#2563eb" radius={[4, 4, 0, 0]} maxBarSize={30} name="Imported (Grid)" />
-                  <Bar dataKey="exported" fill="#16a34a" radius={[4, 4, 0, 0]} maxBarSize={30} name="Exported (Solar)" />
+                  <Bar dataKey="imported" fill="#2563eb" radius={[4, 4, 0, 0]} maxBarSize={30} name="Imported (Grid)" isAnimationActive={false} />
+                  <Bar dataKey="exported" fill="#16a34a" radius={[4, 4, 0, 0]} maxBarSize={30} name="Exported (Solar)" isAnimationActive={false} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -299,7 +317,7 @@ function NetMeterInner() {
                     <TableRow key={r.id} className="hover:bg-slate-50/50">
                       <TableCell className="text-slate-700 text-xs font-medium">
                         {filter === 'hourly' 
-                          ? `${new Date(r.date).toLocaleDateString("en-IN")} ${formatDateByFilter(r.date, 'hourly')}`
+                          ? `${formatDateByFilter(r.date, 'daily')} ${formatDateByFilter(r.date, 'hourly')}`
                           : formatDateByFilter(r.date, filter, 'table')
                         }
                       </TableCell>

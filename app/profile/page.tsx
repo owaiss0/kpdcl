@@ -1,19 +1,19 @@
 "use client"
 
-import { Suspense } from "react"
+import { Suspense, useState, useEffect } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
-import { useEffect, useState } from "react"
 import {
-  User, Hash, Zap, FileKey, Calendar, Gauge, Phone, Mail,
-  MapPin, Cpu, CheckCircle2, ChevronLeft, ArrowUpRight,
-  Pencil, AlertCircle, ShieldCheck
+  Hash, FileKey, Phone, Mail,
+  MapPin, Cpu, CheckCircle2, ArrowLeft, ArrowUpRight,
+  Pencil, AlertCircle, ShieldCheck, Copy, Check, Building2,
+  Headphones, RefreshCw, Zap
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import SidebarLayout from "@/components/layout/sidebar-layout"
 import { fetchConsumerByNo } from "@/data/demo"
 import type { Consumer } from "@/data/types"
@@ -24,6 +24,7 @@ function ProfileInner() {
   const consumerNo = searchParams.get("consumer") || "KPDCL-2024-001"
 
   const [consumer, setConsumer] = useState<Consumer | null>(null)
+  const [copiedKey, setCopiedKey] = useState<string | null>(null)
 
   // Edit contact modals state
   const [editField, setEditField] = useState<"phone" | "email" | null>(null)
@@ -32,6 +33,12 @@ function ProfileInner() {
   const [validationError, setValidationError] = useState("")
   const [modalStep, setModalStep] = useState<"edit" | "otp" | "success" | "failure">("edit")
   const [otpCode, setOtpCode] = useState("")
+
+  function handleCopy(text: string, key: string) {
+    navigator.clipboard.writeText(text)
+    setCopiedKey(key)
+    setTimeout(() => setCopiedKey(null), 2000)
+  }
 
   // Load consumer details & local overrides
   useEffect(() => {
@@ -49,8 +56,7 @@ function ProfileInner() {
           } else {
             setConsumer(data)
           }
-        } catch (e) {
-          console.error(e)
+        } catch {
           setConsumer(data)
         }
       }
@@ -60,8 +66,9 @@ function ProfileInner() {
   if (!consumer) {
     return (
       <SidebarLayout consumerNo={consumerNo}>
-        <div className="flex items-center justify-center py-20 text-muted-foreground">
-          Loading consumer profile...
+        <div className="flex flex-col items-center justify-center py-24 text-muted-foreground gap-3">
+          <RefreshCw className="h-6 w-6 animate-spin text-primary" />
+          <p className="text-sm font-medium">Loading consumer profile record...</p>
         </div>
       </SidebarLayout>
     )
@@ -83,14 +90,24 @@ function ProfileInner() {
     setValidationError("")
     
     if (editValue.trim() !== confirmValue.trim()) {
-      setValidationError(`New and Confirm values do not match!`)
+      setValidationError("New and Confirm values do not match!")
+      return
+    }
+
+    if (editField === "phone" && !/^\d{10}$/.test(editValue.trim())) {
+      setValidationError("Please enter a valid 10-digit mobile number.")
+      return
+    }
+
+    if (editField === "email" && !/\S+@\S+\.\S+/.test(editValue.trim())) {
+      setValidationError("Please enter a valid email address.")
       return
     }
     
     setModalStep("otp")
   }
 
-  // Verify OTP handler (demo logic: "123456" succeeds, other fails)
+  // Verify OTP handler (demo logic: "123456" succeeds)
   function handleVerifyOtp(e: React.FormEvent) {
     e.preventDefault()
     if (!consumer) return
@@ -99,18 +116,20 @@ function ProfileInner() {
       const updatedMobile = editField === "phone" ? editValue.trim() : consumer.mobile
       const updatedEmail = editField === "email" ? editValue.trim() : consumer.email
 
-      // Update state
       setConsumer({
         ...consumer,
         mobile: updatedMobile,
         email: updatedEmail
       })
 
-      // Save override to localStorage
-      localStorage.setItem(`kpdcl_profile_updates_${consumerNo}`, JSON.stringify({
-        mobile: updatedMobile,
-        email: updatedEmail
-      }))
+      try {
+        localStorage.setItem(`kpdcl_profile_updates_${consumerNo}`, JSON.stringify({
+          mobile: updatedMobile,
+          email: updatedEmail
+        }))
+      } catch (err) {
+        console.error(err)
+      }
 
       setModalStep("success")
     } else {
@@ -118,350 +137,378 @@ function ProfileInner() {
     }
   }
 
+  const initials = consumer.name
+    .split(" ")
+    .map(n => n[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase()
+
   return (
     <SidebarLayout consumerNo={consumerNo}>
       <div className="space-y-6">
-        {/* Breadcrumbs / Header navigation */}
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        
+        {/* Breadcrumbs & Header */}
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b pb-4">
           <div>
             <Button 
               variant="ghost" 
               size="sm" 
-              onClick={() => router.push(`/dashboard?consumer=${consumerNo}`)}
-              className="h-8 px-2 -ml-2 text-slate-500 hover:text-slate-900"
+              onClick={() => router.push(`/dashboard?consumer=${encodeURIComponent(consumerNo)}`)}
+              className="h-7 px-2 -ml-2 text-xs text-muted-foreground hover:text-foreground gap-1.5"
             >
-              <ChevronLeft className="mr-1 h-4 w-4" /> Back to Dashboard
+              <ArrowLeft className="h-3.5 w-3.5" /> Back to Dashboard
             </Button>
-            <h1 className="text-2xl font-black tracking-tight text-slate-900 mt-1">Consumer Profile</h1>
-            <p className="text-xs text-muted-foreground">Official supply details & ownership record</p>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground mt-1">Consumer Profile</h1>
+            <p className="text-xs text-muted-foreground">Official electricity supply registration and ownership credentials</p>
           </div>
           
-          <Badge className="bg-green-50 text-green-700 border border-green-200 hover:bg-green-50 font-bold px-3 py-1 text-xs shrink-0 w-fit flex items-center gap-1.5 shadow-2xs">
-            <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-ping" />
-            Active Supply
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 text-xs px-2.5 py-1 flex items-center gap-1.5 font-medium">
+              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+              Active Grid Supply
+            </Badge>
+          </div>
         </div>
 
-        {/* Profile Header Summary Card */}
-        <Card className="overflow-hidden shadow-md border-slate-200 bg-white">
-          <div className="bg-linear-to-r from-blue-900 via-indigo-900 to-slate-950 px-6 py-12 relative overflow-hidden">
-            {/* Background elements */}
-            <div className="absolute right-0 top-0 bottom-0 opacity-10 flex items-center pr-12 pointer-events-none">
-              <Zap className="h-36 w-36 text-white" />
-            </div>
+        {/* Hero Profile Summary Card - Full Bleed Card (No Half Banner Cutout) */}
+        <Card className="border border-blue-500/20 bg-linear-to-r from-blue-700 via-blue-600 to-indigo-700 dark:from-blue-950 dark:via-blue-900 dark:to-indigo-950 text-white shadow-sm overflow-hidden relative">
+          {/* Subtle Grid & Lighting Watermark */}
+          <div className="absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.14)_1px,transparent_1px)] [background-size:16px_16px] pointer-events-none" />
+          <div className="absolute right-0 top-0 bottom-0 opacity-10 flex items-center pr-8 pointer-events-none">
+            <Zap className="h-44 w-44" />
           </div>
-          <CardContent className="relative -mt-10 flex flex-col md:flex-row items-start md:items-end gap-5 px-6 pb-6 min-w-0">
-            <Avatar className="h-20 w-20 sm:h-24 sm:w-24 border-4 border-white shadow-lg shrink-0 rounded-full bg-white">
-              <AvatarFallback className="bg-linear-to-tr from-blue-600 to-indigo-700 text-white text-2xl font-black rounded-full">
-                {consumer.name.split(" ").map(n => n[0]).join("")}
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex flex-1 flex-col sm:flex-row sm:items-end sm:justify-between gap-4 w-full min-w-0 pb-1.5">
-              <div className="min-w-0 space-y-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h2 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 truncate">{consumer.name}</h2>
-                  <Badge variant="secondary" className="bg-blue-50 text-blue-700 hover:bg-blue-50 font-bold text-xs uppercase px-2 py-0.5 border border-blue-100/50">
-                    {consumer.connectionType === "domestic" ? "Domestic" : consumer.connectionType === "commercial" ? "Commercial" : "Industrial"}
-                  </Badge>
+
+          <CardContent className="p-5 sm:p-6 relative z-10">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-6">
+              {/* User Identity Info - Fully Responsive (Zero mobile clipping) */}
+              <div className="flex items-center gap-3.5 sm:gap-4 min-w-0">
+                <Avatar className="h-14 w-14 sm:h-16 sm:w-16 ring-2 ring-white/30 shadow-md shrink-0">
+                  <AvatarFallback className="bg-white text-blue-700 text-lg sm:text-xl font-bold tracking-tight">
+                    {initials}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0 space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="text-lg sm:text-2xl font-bold tracking-tight text-white truncate">
+                      {consumer.name}
+                    </h2>
+                    <span className="inline-flex items-center rounded-full bg-white/20 px-2.5 py-0.5 text-[10px] sm:text-xs font-semibold text-white backdrop-blur-xs">
+                      {consumer.category} ({consumer.connectionType})
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-blue-100 font-mono">
+                    <span>ID: {consumer.consumerNo}</span>
+                    <button
+                      onClick={() => handleCopy(consumer.consumerNo, "cno")}
+                      className="hover:text-white p-0.5 rounded transition-colors"
+                      title="Copy Consumer ID"
+                    >
+                      {copiedKey === "cno" ? <Check className="h-3.5 w-3.5 text-emerald-300" /> : <Copy className="h-3.5 w-3.5" />}
+                    </button>
+                  </div>
                 </div>
-                <p className="text-xs font-mono font-bold text-muted-foreground flex items-center gap-1.5">
-                  <Hash className="h-3.5 w-3.5 text-slate-400" />
-                  ID: {consumer.consumerNo}
-                </p>
               </div>
-              <div className="flex gap-2">
+
+              {/* Action Buttons - Full Width on Mobile, Inline on Desktop */}
+              <div className="grid grid-cols-2 sm:flex items-center gap-2 shrink-0 pt-2 sm:pt-0 border-t border-white/10 sm:border-t-0">
                 <Button 
                   size="sm" 
                   variant="outline" 
-                  onClick={() => router.push(`/billing?consumer=${consumerNo}`)}
-                  className="text-xs border-slate-200 hover:bg-slate-50"
+                  onClick={() => router.push(`/billing?consumer=${encodeURIComponent(consumerNo)}`)}
+                  className="text-xs h-8.5 gap-1.5 bg-white/10 border-white/25 text-white hover:bg-white/20 hover:text-white cursor-pointer justify-center"
                 >
-                  Billing Ledger
-                  <ArrowUpRight className="ml-1 h-3.5 w-3.5" />
+                  <span>Billing Ledger</span>
+                  <ArrowUpRight className="h-3.5 w-3.5" />
+                </Button>
+                <Button 
+                  size="sm" 
+                  onClick={() => router.push(`/documents?consumer=${encodeURIComponent(consumerNo)}`)}
+                  className="text-xs h-8.5 gap-1.5 bg-white text-blue-700 hover:bg-blue-50 font-semibold shadow-xs border-0 cursor-pointer justify-center"
+                >
+                  <FileKey className="h-3.5 w-3.5" />
+                  <span>No Dues Certificate</span>
                 </Button>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* 2-Column Info Grid */}
-        <div className="grid gap-6 lg:grid-cols-12">
-          {/* Column Left: Metering & Registration Details */}
-          <div className="lg:col-span-8 space-y-6">
-            
-            {/* Supply & Metering details */}
-            <Card className="shadow-xs border-slate-200">
-              <CardHeader className="pb-3 border-b border-slate-100">
-                <CardTitle className="text-base font-bold flex items-center gap-2 text-slate-800">
-                  <Cpu className="h-4 w-4 text-blue-600" />
-                  Supply & Metering Info
-                </CardTitle>
-                <CardDescription>Grid connection hardware details and load statistics</CardDescription>
-              </CardHeader>
-              <CardContent className="pt-5 p-0">
-                <div className="grid sm:grid-cols-2 gap-px bg-slate-100 divide-y sm:divide-y-0 divide-slate-100">
-                  
-                  {/* Field 1 */}
-                  <div className="bg-white p-5 flex items-start gap-4">
-                    <div className="h-9 w-9 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center shrink-0">
-                      <Gauge className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Sanctioned Load</p>
-                      <p className="text-lg font-black text-slate-800 mt-0.5">{consumer.sanctionedLoad} kW</p>
-                      <p className="text-[10px] text-muted-foreground">Authorized maximum peak draw</p>
-                    </div>
-                  </div>
-
-                  {/* Field 2 */}
-                  <div className="bg-white p-5 flex items-start gap-4">
-                    <div className="h-9 w-9 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center shrink-0">
-                      <Cpu className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Smart Meter Serial</p>
-                      <p className="text-base font-mono font-bold text-slate-800 mt-1">{consumer.meterSerialNo}</p>
-                      <p className="text-[10px] text-muted-foreground mt-0.5">Model batch Make: SMx-2024</p>
-                    </div>
-                  </div>
-
-                  {/* Field 3 */}
-                  <div className="bg-white p-5 flex items-start gap-4">
-                    <div className="h-9 w-9 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center shrink-0">
-                      <Zap className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Feeder Division Code</p>
-                      <p className="text-base font-bold text-slate-800 mt-1">FV-21B (Srinagar)</p>
-                      <p className="text-[10px] text-muted-foreground mt-0.5">Connected local substation feeder</p>
-                    </div>
-                  </div>
-
-                  {/* Field 4 */}
-                  <div className="bg-white p-5 flex items-start gap-4">
-                    <div className="h-9 w-9 bg-green-50 text-green-600 rounded-xl flex items-center justify-center shrink-0">
-                      <CheckCircle2 className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Meter Make / Status</p>
-                      <p className="text-base font-bold text-slate-800 mt-1">L&T Smart Meter</p>
-                      <p className="text-[10px] text-green-600 font-semibold mt-0.5">● Communicating / Online</p>
-                    </div>
-                  </div>
-
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Registration & Legal Details */}
-            <Card className="shadow-xs border-slate-200">
-              <CardHeader className="pb-3 border-b border-slate-100">
-                <CardTitle className="text-base font-bold flex items-center gap-2 text-slate-800">
-                  <FileKey className="h-4 w-4 text-blue-600" />
-                  Account & Agreement Records
-                </CardTitle>
-                <CardDescription>Official administrative registrations and identifiers</CardDescription>
-              </CardHeader>
-              <CardContent className="pt-4">
-                <div className="divide-y divide-slate-100">
-                  
-                  <div className="flex items-center justify-between py-3.5">
-                    <div className="flex items-center gap-3">
-                      <Hash className="h-4 w-4 text-slate-400" />
-                      <span className="text-sm font-semibold text-slate-600">Account ID</span>
-                    </div>
-                    <span className="text-sm font-mono font-bold text-slate-800">{consumer.accountId}</span>
-                  </div>
-
-                  <div className="flex items-center justify-between py-3.5">
-                    <div className="flex items-center gap-3">
-                      <FileKey className="h-4 w-4 text-slate-400" />
-                      <span className="text-sm font-semibold text-slate-600">Service Agreement ID</span>
-                    </div>
-                    <span className="text-sm font-mono font-bold text-slate-800">SA-2024-001</span>
-                  </div>
-
-                  <div className="flex items-center justify-between py-3.5">
-                    <div className="flex items-center gap-3">
-                      <Hash className="h-4 w-4 text-slate-400" />
-                      <span className="text-sm font-semibold text-slate-600">Installation Number</span>
-                    </div>
-                    <span className="text-sm font-mono font-bold text-slate-800">INST-87321</span>
-                  </div>
-
-                  <div className="flex items-center justify-between py-3.5">
-                    <div className="flex items-center gap-3">
-                      <User className="h-4 w-4 text-slate-400" />
-                      <span className="text-sm font-semibold text-slate-600">Parentage</span>
-                    </div>
-                    <span className="text-sm font-bold text-slate-800">Ghulam Mohammad</span>
-                  </div>
-
-                  <div className="flex items-center justify-between py-3.5">
-                    <div className="flex items-center gap-3">
-                      <Calendar className="h-4 w-4 text-slate-400" />
-                      <span className="text-sm font-semibold text-slate-600">Service Activation Date</span>
-                    </div>
-                    <span className="text-sm font-bold text-slate-800">January 3, 2025</span>
-                  </div>
-
-                </div>
-              </CardContent>
-            </Card>
-
-          </div>
-
-          {/* Column Right: Contact Information */}
-          <div className="lg:col-span-4 space-y-6">
-            
-            <Card className="shadow-xs border-slate-200 bg-linear-to-b from-white to-slate-50/50">
-              <CardHeader className="pb-3 border-b border-slate-100">
-                <CardTitle className="text-base font-bold flex items-center gap-2 text-slate-800">
-                  <Phone className="h-4 w-4 text-blue-600" />
-                  Registered Contacts
-                </CardTitle>
-                <CardDescription>Contact numbers for billing alerts and SMS</CardDescription>
-              </CardHeader>
-              <CardContent className="pt-5 space-y-4">
-                
-                {/* Mobile Phone */}
-                <div className="bg-white border rounded-xl p-4 flex items-center justify-between gap-3 shadow-2xs hover:border-blue-200 transition group/item">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="h-8 w-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-                      <Phone className="h-4 w-4" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Mobile Phone</p>
-                      <a href={`tel:${consumer.mobile}`} className="text-sm font-bold text-slate-800 hover:text-blue-600 transition mt-0.5 block">
-                        {consumer.mobile}
-                      </a>
-                    </div>
-                  </div>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="h-8 w-8 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors shrink-0"
-                    onClick={() => handleOpenEdit("phone", consumer.mobile)}
-                    title="Edit Phone Number"
+        {/* 4 Master Record Cards Grid */}
+        <div className="grid gap-6 md:grid-cols-2">
+          
+          {/* Card 1: Account & Supply Record */}
+          <Card className="border shadow-xs">
+            <CardHeader className="pb-3 border-b">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <Hash className="h-4 w-4 text-primary" />
+                Account &amp; Registration Ledger
+              </CardTitle>
+              <CardDescription className="text-xs">Statutory DISCOM identification numbers</CardDescription>
+            </CardHeader>
+            <CardContent className="pt-3 divide-y text-xs">
+              <div className="flex items-center justify-between py-2.5">
+                <span className="text-muted-foreground">Consumer ID</span>
+                <span className="font-mono font-bold text-foreground">{consumer.consumerNo}</span>
+              </div>
+              <div className="flex items-center justify-between py-2.5">
+                <span className="text-muted-foreground">Account Number</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="font-mono font-bold text-foreground">{consumer.accountId}</span>
+                  <button
+                    onClick={() => handleCopy(consumer.accountId, "acc")}
+                    className="text-muted-foreground hover:text-foreground"
+                    title="Copy Account ID"
                   >
-                    <Pencil className="h-3.5 w-3.5" />
-                  </Button>
+                    {copiedKey === "acc" ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3" />}
+                  </button>
                 </div>
+              </div>
+              <div className="flex items-center justify-between py-2.5">
+                <span className="text-muted-foreground">Sanctioned Load</span>
+                <span className="font-bold text-foreground">{consumer.sanctionedLoad} kW</span>
+              </div>
+              <div className="flex items-center justify-between py-2.5">
+                <span className="text-muted-foreground">Tariff Classification</span>
+                <span className="font-medium text-foreground capitalize">{consumer.connectionType} (LT-1)</span>
+              </div>
+              <div className="flex items-center justify-between py-2.5">
+                <span className="text-muted-foreground">Billing Category</span>
+                <span className="font-medium text-foreground">{consumer.category} (Smart AMI)</span>
+              </div>
+              <div className="flex items-center justify-between py-2.5">
+                <span className="text-muted-foreground">Agreement ID</span>
+                <span className="font-mono text-muted-foreground">SA-2024-KPDCL-001</span>
+              </div>
+            </CardContent>
+          </Card>
 
-                {/* Email Address */}
-                <div className="bg-white border rounded-xl p-4 flex items-center justify-between gap-3 shadow-2xs hover:border-blue-200 transition group/item">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="h-8 w-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
-                      <Mail className="h-4 w-4" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Email Address</p>
-                      <a href={`mailto:${consumer.email}`} className="text-sm font-bold text-slate-800 hover:text-blue-600 transition mt-0.5 block truncate">
-                        {consumer.email}
-                      </a>
-                    </div>
-                  </div>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="h-8 w-8 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors shrink-0"
-                    onClick={() => handleOpenEdit("email", consumer.email)}
-                    title="Edit Email Address"
+          {/* Card 2: Metering & Sub-Station Hardware */}
+          <Card className="border shadow-xs">
+            <CardHeader className="pb-3 border-b">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <Cpu className="h-4 w-4 text-primary" />
+                Smart Metering &amp; Substation
+              </CardTitle>
+              <CardDescription className="text-xs">Live telemetry and grid feeder details</CardDescription>
+            </CardHeader>
+            <CardContent className="pt-3 divide-y text-xs">
+              <div className="flex items-center justify-between py-2.5">
+                <span className="text-muted-foreground">Smart Meter Serial</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="font-mono font-bold text-foreground">{consumer.meterSerialNo}</span>
+                  <button
+                    onClick={() => handleCopy(consumer.meterSerialNo, "meter")}
+                    className="text-muted-foreground hover:text-foreground"
+                    title="Copy Meter Serial"
                   >
-                    <Pencil className="h-3.5 w-3.5" />
-                  </Button>
+                    {copiedKey === "meter" ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3" />}
+                  </button>
                 </div>
+              </div>
+              <div className="flex items-center justify-between py-2.5">
+                <span className="text-muted-foreground">Meter Make / Spec</span>
+                <span className="font-medium text-foreground">L&amp;T Smart AMI (Bidirectional)</span>
+              </div>
+              <div className="flex items-center justify-between py-2.5">
+                <span className="text-muted-foreground">Supply Feeder</span>
+                <span className="font-medium text-foreground">11 kV Rajbagh Feeder</span>
+              </div>
+              <div className="flex items-center justify-between py-2.5">
+                <span className="text-muted-foreground">Receiving Grid Station</span>
+                <span className="font-medium text-foreground">132/33kV Bemina Station</span>
+              </div>
+              <div className="flex items-center justify-between py-2.5">
+                <span className="text-muted-foreground">AMI Signal Health</span>
+                <span className="text-emerald-600 font-medium flex items-center gap-1">
+                  <CheckCircle2 className="h-3.5 w-3.5" /> 100% Cellular Sync
+                </span>
+              </div>
+              <div className="flex items-center justify-between py-2.5">
+                <span className="text-muted-foreground">Switch State</span>
+                <span className="font-medium text-emerald-600">Connected / Closed</span>
+              </div>
+            </CardContent>
+          </Card>
 
-                {/* Address Map */}
-                <div className="bg-white border rounded-xl p-4 flex gap-3 shadow-2xs">
-                  <div className="h-8 w-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-                    <MapPin className="h-4 w-4" />
+          {/* Card 3: Verified Contacts & Direct Update */}
+          <Card className="border shadow-xs">
+            <CardHeader className="pb-3 border-b">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <Phone className="h-4 w-4 text-primary" />
+                Registered Contact Information
+              </CardTitle>
+              <CardDescription className="text-xs">Used for SMS outage alerts, bills, and payment tokens</CardDescription>
+            </CardHeader>
+            <CardContent className="pt-4 space-y-3 text-xs">
+              {/* Phone item */}
+              <div className="flex items-center justify-between p-3 rounded-xl border bg-muted/30">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="h-8 w-8 rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-400 flex items-center justify-center shrink-0">
+                    <Phone className="h-4 w-4" />
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Supply Address</p>
-                    <p className="text-xs text-slate-600 leading-relaxed font-semibold mt-1">
-                      {consumer.address}
-                    </p>
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Registered Mobile</p>
+                    <p className="font-mono font-bold text-foreground mt-0.5">{consumer.mobile}</p>
                   </div>
                 </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleOpenEdit("phone", consumer.mobile)}
+                  className="h-7 text-xs gap-1"
+                >
+                  <Pencil className="h-3 w-3" /> Update
+                </Button>
+              </div>
 
-              </CardContent>
-            </Card>
+              {/* Email item */}
+              <div className="flex items-center justify-between p-3 rounded-xl border bg-muted/30">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="h-8 w-8 rounded-lg bg-purple-50 text-purple-600 dark:bg-purple-950 dark:text-purple-400 flex items-center justify-center shrink-0">
+                    <Mail className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Registered Email</p>
+                    <p className="font-medium text-foreground mt-0.5 truncate max-w-[170px]">{consumer.email}</p>
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleOpenEdit("email", consumer.email)}
+                  className="h-7 text-xs gap-1"
+                >
+                  <Pencil className="h-3 w-3" /> Update
+                </Button>
+              </div>
 
-          </div>
+              {/* Address item */}
+              <div className="p-3 rounded-xl border bg-muted/30 flex items-start gap-3">
+                <div className="h-8 w-8 rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">
+                  <MapPin className="h-4 w-4" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Premises Supply Address</p>
+                  <p className="text-xs font-medium text-foreground mt-0.5 leading-relaxed">{consumer.address}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Card 4: Administrative Hierarchy & Emergency Outage */}
+          <Card className="border shadow-xs">
+            <CardHeader className="pb-3 border-b">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <Building2 className="h-4 w-4 text-primary" />
+                Sub-Division Hierarchy &amp; Escalation
+              </CardTitle>
+              <CardDescription className="text-xs">Designated officers under J&amp;K Public Services Guarantee</CardDescription>
+            </CardHeader>
+            <CardContent className="pt-3 divide-y text-xs">
+              <div className="flex items-center justify-between py-2.5">
+                <span className="text-muted-foreground">Electric Sub-Division</span>
+                <span className="font-medium text-foreground">Sub-Division II (Rajbagh)</span>
+              </div>
+              <div className="flex items-center justify-between py-2.5">
+                <span className="text-muted-foreground">Sub-Divisional Officer (SDO)</span>
+                <span className="font-medium text-foreground">Er. Mushtaq Ahmad</span>
+              </div>
+              <div className="flex items-center justify-between py-2.5">
+                <span className="text-muted-foreground">Section Junior Engineer (JE)</span>
+                <span className="font-medium text-foreground">Er. Firdous Ahmad</span>
+              </div>
+              <div className="flex items-center justify-between py-2.5">
+                <span className="text-muted-foreground">Executive Engineer (XEN)</span>
+                <span className="font-medium text-foreground">Electric Division II (Srinagar)</span>
+              </div>
+
+              <div className="pt-3">
+                <div className="rounded-xl border bg-linear-to-br from-blue-50/50 to-indigo-50/30 dark:from-blue-950/20 dark:to-indigo-950/10 p-3 flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                      <Headphones className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-foreground">24x7 Emergency Call Center</p>
+                      <p className="text-[10px] text-muted-foreground">Immediate outage &amp; fault report</p>
+                    </div>
+                  </div>
+                  <span className="font-mono text-base font-bold text-primary">1912</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
         </div>
 
         {/* Dynamic Verification Wizard Modal */}
         <Dialog open={!!editField} onOpenChange={(op) => { if (!op) setEditField(null) }}>
-          <DialogContent className="sm:max-w-md p-6 bg-white rounded-xl shadow-lg border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
+          <DialogContent className="sm:max-w-md p-6">
             
             {/* Step 1: Input value change */}
             {modalStep === "edit" && (
-              <form onSubmit={handleSendVerification} className="space-y-4">
+              <form onSubmit={handleSendVerification} className="space-y-4 text-xs">
                 <DialogHeader>
-                  <DialogTitle className="text-base font-bold text-slate-900">
-                    Update Registered {editField === "phone" ? "Mobile Phone" : "Email Address"}
+                  <DialogTitle className="text-base font-bold">
+                    Update Registered {editField === "phone" ? "Mobile Number" : "Email Address"}
                   </DialogTitle>
+                  <DialogDescription className="text-xs">
+                    Enter and confirm your new {editField === "phone" ? "phone number" : "email address"}. A verification OTP will be simulated.
+                  </DialogDescription>
                 </DialogHeader>
-                <div className="space-y-3.5 py-2">
-                  <p className="text-xs text-slate-500 leading-relaxed">
-                    Please enter and confirm your new {editField === "phone" ? "phone number" : "email address"}. 
-                    We will send a 6-digit verification code to confirm ownership.
-                  </p>
 
-                  {/* Current detail (read-only) */}
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                      Current {editField === "phone" ? "Phone Number" : "Email Address"}
+                <div className="space-y-3 py-1">
+                  <div>
+                    <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block mb-1">
+                      Current Value
                     </label>
-                    <div className="h-10 px-3 flex items-center bg-slate-50 border border-slate-200 rounded-lg text-slate-500 text-sm font-semibold select-none">
+                    <div className="h-8 px-3 flex items-center bg-muted/50 border rounded-md text-muted-foreground text-xs font-mono">
                       {editField === "phone" ? consumer.mobile : consumer.email}
                     </div>
                   </div>
 
-                  {/* New value input */}
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                      New {editField === "phone" ? "Phone Number" : "Email Address"}
+                  <div>
+                    <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block mb-1">
+                      New {editField === "phone" ? "Mobile (10 digits)" : "Email Address"} <span className="text-destructive">*</span>
                     </label>
                     <Input
                       type={editField === "phone" ? "tel" : "email"}
                       value={editValue}
                       onChange={(e) => setEditValue(e.target.value)}
-                      placeholder={editField === "phone" ? "e.g. 9876543210" : "e.g. user@example.com"}
-                      className="h-10 text-sm"
+                      placeholder={editField === "phone" ? "e.g. 9419000008" : "e.g. user@example.com"}
+                      className="h-8 text-xs font-medium"
                       required
                     />
                   </div>
 
-                  {/* Confirm new value input */}
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                      Confirm New {editField === "phone" ? "Phone Number" : "Email Address"}
+                  <div>
+                    <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block mb-1">
+                      Confirm New Value <span className="text-destructive">*</span>
                     </label>
                     <Input
                       type={editField === "phone" ? "tel" : "email"}
                       value={confirmValue}
                       onChange={(e) => setConfirmValue(e.target.value)}
-                      placeholder={editField === "phone" ? "e.g. 9876543210" : "e.g. user@example.com"}
-                      className="h-10 text-sm"
+                      placeholder={editField === "phone" ? "Re-enter 10-digit number" : "Re-enter email address"}
+                      className="h-8 text-xs font-medium"
                       required
                     />
                   </div>
 
                   {validationError && (
-                    <p className="text-xs font-semibold text-destructive mt-1.5 flex items-center gap-1.5 animate-in fade-in duration-100">
-                      <AlertCircle className="h-4 w-4" />
+                    <p className="text-xs font-medium text-destructive flex items-center gap-1.5">
+                      <AlertCircle className="h-3.5 w-3.5 shrink-0" />
                       {validationError}
                     </p>
                   )}
                 </div>
                 
-                <div className="flex justify-end gap-3 pt-2">
-                  <Button type="button" variant="outline" size="sm" onClick={() => setEditField(null)} className="h-9 text-xs">
+                <div className="flex justify-end gap-2 pt-2 border-t">
+                  <Button type="button" variant="outline" size="sm" onClick={() => setEditField(null)}>
                     Cancel
                   </Button>
-                  <Button type="submit" size="sm" className="h-9 text-xs">
+                  <Button type="submit" size="sm" className="shadow-xs">
                     Send Verification Code
                   </Button>
                 </div>
@@ -470,30 +517,18 @@ function ProfileInner() {
 
             {/* Step 2: OTP Entry */}
             {modalStep === "otp" && (
-              <form onSubmit={handleVerifyOtp} className="space-y-4">
+              <form onSubmit={handleVerifyOtp} className="space-y-4 text-xs">
                 <DialogHeader>
-                  <DialogTitle className="text-base font-bold text-slate-900">
-                    Verify Registration
-                  </DialogTitle>
+                  <DialogTitle className="text-base font-bold">Verify Registration</DialogTitle>
+                  <DialogDescription className="text-xs">
+                    A 6-digit confirmation code was dispatched to <strong className="font-mono text-foreground">{editValue}</strong>.
+                  </DialogDescription>
                 </DialogHeader>
-                <div className="space-y-3.5 py-2">
-                  <div className="text-xs text-slate-500 leading-relaxed flex flex-wrap items-center gap-1.5">
-                    <span>A 6-digit code has been dispatched to:</span>
-                    <span className="font-mono font-bold text-slate-900 bg-slate-50 border border-slate-200 px-1.5 py-0.5 rounded flex items-center gap-1">
-                      {editValue}
-                      <button 
-                        type="button" 
-                        onClick={() => { setModalStep("edit"); setValidationError(""); }}
-                        className="text-blue-600 hover:text-blue-700 transition"
-                        title="Correct typo in phone/email"
-                      >
-                        <Pencil className="h-3 w-3 inline text-blue-600" />
-                      </button>
-                    </span>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                      Enter 6-Digit OTP
+
+                <div className="space-y-3 py-1">
+                  <div>
+                    <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block mb-1">
+                      Enter 6-Digit OTP Code
                     </label>
                     <Input
                       type="text"
@@ -501,20 +536,29 @@ function ProfileInner() {
                       value={otpCode}
                       onChange={(e) => setOtpCode(e.target.value)}
                       placeholder="e.g. 123456"
-                      className="h-10 text-sm text-center font-mono font-bold tracking-widest"
+                      className="h-9 text-center font-mono font-bold tracking-widest text-sm"
                       required
                     />
-                    <p className="text-[9px] text-slate-400 font-semibold leading-normal">
-                      ℹ️ For demonstration: Enter <span className="font-bold text-blue-600">123456</span> to simulate success. Any other code simulates failure.
-                    </p>
+                  </div>
+
+                  <div className="flex items-center justify-between text-[11px] text-muted-foreground p-2 rounded-lg bg-muted/40">
+                    <span>Demo Verification Code: <strong className="text-primary font-mono">123456</strong></span>
+                    <button
+                      type="button"
+                      onClick={() => setOtpCode("123456")}
+                      className="text-primary hover:underline font-semibold"
+                    >
+                      Auto-fill
+                    </button>
                   </div>
                 </div>
-                <div className="flex justify-end gap-3 pt-2">
-                  <Button type="button" variant="outline" size="sm" onClick={() => setModalStep("edit")} className="h-9 text-xs">
+
+                <div className="flex justify-end gap-2 pt-2 border-t">
+                  <Button type="button" variant="outline" size="sm" onClick={() => setModalStep("edit")}>
                     Back
                   </Button>
-                  <Button type="submit" size="sm" className="h-9 text-xs">
-                    Verify Code
+                  <Button type="submit" size="sm" className="shadow-xs">
+                    Confirm &amp; Update
                   </Button>
                 </div>
               </form>
@@ -522,19 +566,19 @@ function ProfileInner() {
 
             {/* Step 3: Success Screen */}
             {modalStep === "success" && (
-              <div className="space-y-4 py-2 text-center">
-                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-50 border border-green-200 text-green-600">
+              <div className="space-y-4 py-2 text-center text-xs">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400">
                   <ShieldCheck className="h-6 w-6" />
                 </div>
-                <div className="space-y-1">
-                  <h3 className="text-base font-bold text-slate-900">Verification Successful</h3>
-                  <p className="text-xs text-slate-500 leading-relaxed px-2">
-                    Your registered {editField === "phone" ? "phone number" : "email address"} has been successfully updated to <span className="font-semibold text-slate-800">{editValue}</span>.
+                <div>
+                  <h3 className="text-base font-bold text-foreground">Contact Record Updated</h3>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Your registered {editField === "phone" ? "mobile number" : "email address"} has been successfully updated to <strong className="text-foreground font-mono">{editValue}</strong>.
                   </p>
                 </div>
                 <div className="pt-2 flex justify-center">
-                  <Button type="button" size="sm" onClick={() => setEditField(null)} className="h-9 text-xs px-6">
-                    Close Window
+                  <Button type="button" size="sm" onClick={() => setEditField(null)}>
+                    Done
                   </Button>
                 </div>
               </div>
@@ -542,21 +586,21 @@ function ProfileInner() {
 
             {/* Step 4: Failure Screen */}
             {modalStep === "failure" && (
-              <div className="space-y-4 py-2 text-center">
-                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-50 border border-red-200 text-red-600">
+              <div className="space-y-4 py-2 text-center text-xs">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-100 text-red-600 dark:bg-red-950 dark:text-red-400">
                   <AlertCircle className="h-6 w-6" />
                 </div>
-                <div className="space-y-1">
-                  <h3 className="text-base font-bold text-slate-900">Verification Failed</h3>
-                  <p className="text-xs text-slate-500 leading-relaxed px-2">
-                    The verification code you entered is invalid. Please try again.
+                <div>
+                  <h3 className="text-base font-bold text-foreground">Invalid Code</h3>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    The code you entered does not match. Please use demo code <strong className="font-mono text-foreground">123456</strong>.
                   </p>
                 </div>
-                <div className="pt-2 flex justify-center gap-3">
-                  <Button type="button" variant="outline" size="sm" onClick={() => setEditField(null)} className="h-9 text-xs">
+                <div className="pt-2 flex justify-center gap-2">
+                  <Button type="button" variant="outline" size="sm" onClick={() => setEditField(null)}>
                     Cancel
                   </Button>
-                  <Button type="button" size="sm" onClick={() => { setModalStep("otp"); setOtpCode(""); }} className="h-9 text-xs px-6 bg-red-600 hover:bg-red-700 text-white">
+                  <Button type="button" size="sm" onClick={() => { setModalStep("otp"); setOtpCode("123456"); }}>
                     Try Again
                   </Button>
                 </div>
@@ -572,7 +616,7 @@ function ProfileInner() {
 
 export default function ProfilePage() {
   return (
-    <Suspense fallback={<div className="flex items-center justify-center min-h-screen text-muted-foreground">Loading...</div>}>
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen text-muted-foreground">Loading Profile...</div>}>
       <ProfileInner />
     </Suspense>
   )

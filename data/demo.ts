@@ -146,37 +146,79 @@ const demoBillingRecords: BillingRecord[] = [
 // ── Async Fetchers (swap body to real API later) ──────────────────
 
 export async function fetchConsumerByNo(no: string): Promise<Consumer | null> {
-  // DEMO: return mock data
-  // REAL: return fetch(`/api/consumer/${no}`).then(r => r.json())
-  return demoConsumers.find(c => c.consumerNo === no) ?? null
+  if (!no || no === "undefined" || no === "null" || no === "portal") {
+    return demoConsumers[0]
+  }
+  const match = demoConsumers.find(c => c.consumerNo.toLowerCase() === no.toLowerCase())
+  if (match) return match
+
+  // Check localStorage for custom linked consumers
+  if (typeof window !== "undefined") {
+    try {
+      const stored = localStorage.getItem("kpdcl_linked_consumers")
+      if (stored) {
+        interface StoredConsumer {
+          consumerNo: string
+          name: string
+          address?: string
+          type?: string
+        }
+        const parsed: StoredConsumer[] = JSON.parse(stored)
+        const found = parsed.find((p) => p.consumerNo?.toLowerCase() === no.toLowerCase())
+        if (found) {
+          const typeStr = found.type?.toLowerCase()
+          const connType = (typeStr === "commercial" || typeStr === "industrial") ? typeStr : "domestic"
+          return {
+            consumerNo: found.consumerNo,
+            name: found.name,
+            address: found.address || "House No. 12, Main Road, Srinagar, J&K",
+            mobile: "9419000002",
+            email: "consumer@example.com",
+            sanctionedLoad: 5,
+            connectionType: connType,
+            category: "PREPAID",
+            meterSerialNo: `KA-${found.consumerNo.slice(-5) || "88219"}`,
+            accountId: `644-987-${found.consumerNo.slice(-4) || "4321"}`,
+          }
+        }
+      }
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+  // Safe fallback so no consumer ID ever causes a blank page or 404
+  return {
+    ...demoConsumers[0],
+    consumerNo: no,
+  }
 }
 
 export async function fetchCurrentBill(consumerNo: string): Promise<Bill | null> {
-  // DEMO: return mock data
-  // REAL: return fetch(`/api/bills/current/${consumerNo}`).then(r => r.json())
-  return demoBills.find(b => b.consumerNo === consumerNo && b.status === 'unpaid') ?? null
+  const match = demoBills.find(b => b.consumerNo === consumerNo && b.status === 'unpaid')
+  if (match) return match
+  return demoBills.find(b => b.status === 'unpaid') ?? null
 }
 
 export async function fetchBillHistory(consumerNo: string): Promise<Bill[]> {
-  // DEMO: return mock data
-  // REAL: return fetch(`/api/bills/history/${consumerNo}`).then(r => r.json())
+  const filtered = demoBills.filter(b => b.consumerNo === consumerNo)
+  if (filtered.length > 0) {
+    return filtered.sort((a, b) => new Date(b.billDate).getTime() - new Date(a.billDate).getTime())
+  }
   return demoBills
-    .filter(b => b.consumerNo === consumerNo)
-    .sort((a, b) => new Date(b.billDate).getTime() - new Date(a.billDate).getTime())
 }
 
 export async function fetchRecentPayments(consumerNo: string): Promise<Payment[]> {
-  // DEMO: return mock data
-  // REAL: return fetch(`/api/payments/${consumerNo}`).then(r => r.json())
-  return demoPayments
-    .filter(p => p.consumerNo === consumerNo)
-    .sort((a, b) => new Date(b.paidAt).getTime() - new Date(a.paidAt).getTime())
+  const filtered = demoPayments.filter(p => p.consumerNo === consumerNo)
+  if (filtered.length > 0) {
+    return filtered.sort((a, b) => new Date(b.paidAt).getTime() - new Date(a.paidAt).getTime())
+  }
+  return demoPayments.slice(0, 4)
 }
 
 export async function submitPayment(billId: string, amount: number): Promise<Payment> {
-  // DEMO: simulate payment
-  // REAL: return fetch('/api/payments', { method: 'POST', body: JSON.stringify({ billId, amount }) }).then(r => r.json())
-  await new Promise(r => setTimeout(r, 1000))
+  // DEMO: simulate payment with snappy feedback
+  await new Promise(r => setTimeout(r, 400))
   return {
     id: `PAY-${Date.now()}`,
     consumerNo: 'KPDCL-2024-001',
@@ -193,7 +235,9 @@ export async function fetchUsageRecords(
   filter: TimeFilter = 'daily'
 ): Promise<UsageRecord[]> {
   if (filter === 'daily') {
-    return demoUsageRecords.filter(r => r.consumerNo === consumerNo)
+    const filtered = demoUsageRecords.filter(r => r.consumerNo === consumerNo)
+    if (filtered.length > 0) return filtered
+    return demoUsageRecords.map(r => ({ ...r, consumerNo }))
   }
 
   const records: UsageRecord[] = []
@@ -272,7 +316,9 @@ export async function fetchNetMeterRecords(
   filter: TimeFilter = 'daily'
 ): Promise<NetMeterRecord[]> {
   if (filter === 'daily') {
-    return demoNetMeterRecords.filter(r => r.consumerNo === consumerNo)
+    const filtered = demoNetMeterRecords.filter(r => r.consumerNo === consumerNo)
+    if (filtered.length > 0) return filtered
+    return demoNetMeterRecords.map(r => ({ ...r, consumerNo }))
   }
 
   const records: NetMeterRecord[] = []
@@ -382,9 +428,10 @@ export async function fetchNetMeterRecords(
 }
 
 export async function fetchBillingRecords(consumerNo: string): Promise<BillingRecord[]> {
-  // DEMO: return mock data
-  // REAL: return fetch(`/api/billing/${consumerNo}`).then(r => r.json())
-  return demoBillingRecords
-    .filter(r => r.consumerNo === consumerNo)
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+  // DEMO: return mock data with safe fallback for any linked consumer
+  const filtered = demoBillingRecords.filter(r => r.consumerNo === consumerNo)
+  if (filtered.length > 0) {
+    return filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+  }
+  return demoBillingRecords.map(r => ({ ...r, consumerNo })).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
 }
